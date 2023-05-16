@@ -1,17 +1,4 @@
-#
-# Nginx Dockerfile
-#
-# https://github.com/daockerfile/nginx
-#
+FROM nginx:alpine
 
-# Pull base image.
-FROM ubuntu:latest
-
-WORKDIR /etc/nginx
-
-# Define default command.
-CMD ["nginx"]
-
-# Expose ports.
-EXPOSE 80
-EXPOSE 443
+COPY default.conf /etc/nginx/conf.d/
+COPY index.html /usr/share/nginx/html/
