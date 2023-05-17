@@ -1,0 +1,27 @@
+[tool.tartufo]
+repo-path = "."
+cleanup = true
+regex = true
+entropy = true
+
+exclude-path-patterns = [
+  {path-pattern="tartufo.toml",reason="contains signatures"},
+  {path-pattern="public/ws-client.html",reason="CDN Integrety Hash"},
+  {path-pattern="package-lock.json",reason="contains hashes for package.json"},
+  {path-pattern="src/test",reason="test case module"},
+  {path-pattern=".github/workflows/tests.yaml",reason="added jwt rsa keys"},
+
+]
+
+# Exclude specific entropy signatures
+exclude-entropy-patterns = [
+	{ path-pattern = '\.github\/workflows\/.*\.y(a)?ml', pattern = '[a-zA-Z0-9]{40}(\s*$|\s*#.*$)', reason = 'git SHAs in GH workflows' },
+	{ path-pattern = 'src\/data\/migrations\/.*\.ts', pattern = '[0-9]{14}.*', reason = 'Exclude Database Migration Files' },
+]
+
+# Exclude single signatures
+exclude-signatures = [
+  {signature="5c21a7dccbf0100e6afd9ce9afd00076ef5b9456f3e76023358062e5e63e8ca4",reason="user token"},
+  {signature="5b5544677f782df9334210330fcb5302a00c2244f225c212545c2e417eb84e79",reason="user token"},
+  {signature="2036c08cbce322bcc74b7c2d4ae5e980c1217d8ebed159de867ac73b01db2e6d",reason="AWS-REGION"}
+]

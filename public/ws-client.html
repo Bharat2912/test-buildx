@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Socket.io Web Client</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <style>
+        textarea {
+            height: 100vh;
+            width: 100vw;
+        }
+    </style>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"
+        integrity="sha384-7EyYLQZgWBi67fBtVxw60/OWl1kjsfrPFcaU0pp0nAh+i8FD068QogUvg85Ewy1k"
+        crossorigin="anonymous"></script>
+
+    <script>
+        const newLine = '\n-----------------------------------------------------------------------------\n'
+        let socket, user, log_area, connected_to, status, reconnect_ettempts = 0;
+
+        function ShowElement(ele, val) {
+            document.getElementById(ele).hidden = val ? false : true;
+        }
+        function copyTextToClipboard(text) {
+            if (!navigator.clipboard) {
+                fallbackCopyTextToClipboard(text);
+                return;
+            }
+            navigator.clipboard.writeText(text).then(function () {
+                console.log('Async: Copying to clipboard was successful!');
+            }, function (err) {
+                console.error('Async: Could not copy text: ', err);
+            });
+        }
+        function showLogJson(jsonArr) {
+            if (jsonArr) {
+                let logstr = '';
+                for (let i = 0; i < jsonArr.length; i++) {
+                    if (jsonArr[i]) {
+                        logstr += "\n" + JSON.stringify(jsonArr[i], null, 4)
+                    }
+                }
+                if (logstr) {
+                    var date = new Date();
+                    log_area.value = '@@ >> ' + date.toLocaleTimeString([], { timeStyle: "short" }) + logstr + newLine + log_area.value;
+                }
+            }
+        }
+        function consolelog(a, b, c) {
+            console.log(a, b || " ", c || " ");
+
+            let data = [];
+            if (a) data.push(a);
+            if (b) data.push(b);
+            if (c) data.push(c);
+            if (data.length)
+                showLogJson(data);
+        }
+
+        function setUser(val) {
+            user = val
+            if (user) {
+                document.getElementById("user_id").innerHTML = user.id;
+                document.getElementById("user_name").innerHTML = user.name;
+            }
+        }
+        function setStatus(val) {
+            console.log("################  " + val)
+            if (val === 'idle') {
+                document.getElementById("div_status").innerHTML = "IDLE"
+                ShowElement("btn_connect", true)
+                ShowElement("btn_disconnect", false)
+                ShowElement("div_connected", false)
+                ShowElement("div_disconnected", true)
+            }
+            if (val === 'connecting') {
+                document.getElementById("div_status").innerHTML = "Connecting... " + connected_to
+                ShowElement("btn_connect", false)
+                ShowElement("btn_disconnect", true)
+                ShowElement("div_connected", false)
+                ShowElement("div_disconnected", false)
+            }
+            if (val === 'reconnecting') {
+                document.getElementById("div_status").innerHTML = "Re-Connecting.. (" + reconnect_ettempts + ')'
+                ShowElement("btn_connect", false)
+                ShowElement("btn_disconnect", true)
+                ShowElement("div_connected", false)
+                ShowElement("div_disconnected", false)
+            }
+            if (val === 'failed') {
+                document.getElementById("div_status").innerHTML = "Failed"
+                ShowElement("btn_connect", true)
+                ShowElement("btn_disconnect", false)
+                ShowElement("div_connected", false)
+                ShowElement("div_disconnected", true)
+            }
+            if (val === 'forbidden') {
+                document.getElementById("div_status").innerHTML = "Authentication failed"
+                ShowElement("btn_connect", true)
+                ShowElement("btn_disconnect", false)
+                ShowElement("div_connected", false)
+                ShowElement("div_disconnected", true)
+            }
+            if (val === 'connected') {
+                document.getElementById("div_status").innerHTML = "Connected To" + connected_to
+                ShowElement("btn_connect", false)
+                ShowElement("btn_disconnect", true)
+                ShowElement("div_connected", true)
+                ShowElement("div_disconnected", false)
+            }
+        }
+
+        function eventCopyUserId() {
+            copyTextToClipboard(user.id);
+        }
+        function eventSendMessage() {
+            const msg_to = document.getElementById("msg_to").value;
+            const msg_payload = document.getElementById("msg_payload").value;
+            if (socket) {
+                socket.emit("MESSAGE", {
+                    to_room_id: msg_to,
+                    message: msg_payload
+                });
+                // socket.emit("vendor_auth");
+            }
+        }
+        function eventDisconnectSocket() {
+            socket.disconnect();
+            setStatus('idle')
+        }
+        function eventLogClear() {
+            log_area.value = '';
+        }
+        function eventConnectSocket() {
+            const host = document.getElementById("socket_host").value;
+            const port = document.getElementById("socket_port").value;
+            const token = document.getElementById("auth_token").value;
+            if (!token) {
+                consolelog("Enter Token");
+                return;
+            }
+            //   Connecting to server ------------------------>>
+            let url = host
+            if (port) url = host + ":" + port
+            // url = 'https://api.dev.speedyy.com'
+            connected_to = (url)
+            socket = io.connect(url, {
+                path: '/ws/socket.io',
+                reconnectionDelayMax: 10000,
+                auth: {
+                    token: token,
+                },
+                withCredentials: true
+            });
+            reconnect_ettempts = 0;
+            setStatus('connecting')
+
+            // system define events ----------------------->>
+            socket.on("connect", async (payload) => {
+                consolelog("connected");
+                socket.emit("online");
+            });
+            socket.on("connect_error", (err) => {
+                reconnect_ettempts += 1;
+                consolelog("connect_error", JSON.stringify(err.message));
+                if (JSON.stringify(err.message).indexOf('forbidden') >= 0) {
+                    socket.disconnect();
+                    setStatus('forbidden')
+                }
+                else if (reconnect_ettempts < 4) {
+                    setStatus('reconnecting')
+                }
+                else {
+                    socket.disconnect();
+                    setStatus('failed')
+                }
+            });
+            socket.on("disconnecting", async (payload) => {
+                consolelog("disconnecting : ", payload);
+                setUser();
+            });
+            socket.on("disconnect", async (payload) => {
+                consolelog("disconnect : ", payload);
+                setUser();
+            });
+
+            // Custom Events ----------------------->>
+            socket.on("user_details", async (payload) => {
+                consolelog("user_details : ", payload);
+                setUser(payload);
+                setStatus('connected')
+            });
+
+            socket.on("MESSAGE", async (payload) => {
+                consolelog("MESSAGE : ", payload);
+            });
+            socket.on("ORDER_CANCELLED", async (payload) => {
+                consolelog("ORDER_CANCELLED : ", payload);
+            });
+            socket.on("ORDER_PLACED", async (payload) => {
+                consolelog("ORDER_PLACED : ", payload);
+            });
+            socket.on("VENDOR_ORDER_ACCEPTED", function (payload) {
+                consolelog("VENDOR_ORDER_ACCEPTED : ", payload);
+            });
+            socket.on("VENDOR_ORDER_REJECTED", function (payload) {
+                consolelog("VENDOR_ORDER_REJECTED : ", payload);
+            });
+            socket.on("VENDOR_ORDER_READY", function (payload) {
+                consolelog(+ "VENDOR_ORDER_READY : ", payload);
+            });
+            socket.on("DELIVERY_ORDER_STATUS", function (payload) {
+                consolelog(+ "DELIVERY_ORDER_STATUS : ", payload);
+            });
+            socket.on("DELIVERY_RIDER_STATUS", function (payload) {
+                consolelog(+ "DELIVERY_RIDER_STATUS : ", payload);
+            });
+            socket.on("ORDER_STATUS", function (payload) {
+                consolelog(+ "ORDER_STATUS : ", payload);
+            });
+            socket.on("RIDER_STATUS", function (payload) {
+                consolelog(+ "RIDER_STATUS : ", payload);
+            });
+        }
+        window.onload = (event) => {
+            log_area = document.getElementById("log_area")
+            // log_area.disabled = true
+            setUser();
+            setStatus("idle");
+        };
+    </script>
+
+    <div id="div_status"></div>
+
+    <div id="div_disconnected">
+        <label for="socket_host">socket_host:</label>
+        <input type="text" id="socket_host" name="socket_host" value="http://localhost"></input>
+        <br />
+        <br />
+        <label for="socket_port">socket_port:</label>
+        <input type="text" id="socket_port" value="8888"></input>
+        <br />
+        <br />
+        <label for="auth_token">auth_token:</label>
+        <input type="text" id="auth_token" value="token"></input>
+        <br />
+        <br />
+    </div>
+
+
+    <div id="div_connected">
+        <h3>
+            <table>
+                <tr>
+                    <td>
+                        <label for="user_id">User Id:</label>
+                        <a href="#" onclick="eventCopyUserId()">📋</a>
+                    </td>
+                    <td>
+                        <span id="user_id"></span>
+                    </td>
+                    <td>
+                        <label for="user_name">User Name:</label>
+                    </td>
+                    <td>
+                        <span id="user_name"></span>
+                    </td>
+                    <td>
+                    </td>
+                </tr>
+                <tr>
+                    <td height="10px"></td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="msg_to">To User Id:</label>
+                    </td>
+                    <td>
+                        <input type="text" id="msg_to" value="user_id"></input>
+                    </td>
+                    <td>
+                        <label for="msg_payload">Message:</label>
+                    </td>
+                    <td>
+                        <input type="text" id="msg_payload" value="Message"></input>
+                    </td>
+                    <td>
+                        <button type="button" onClick="eventSendMessage()">
+                            Send >>
+                        </button>
+                    </td>
+                </tr>
+            </table>
+        </h3>
+        <br />
+        <br />
+    </div>
+
+    <table>
+        <tr>
+            <td width='100%'>
+                <button id="btn_connect" type="button" onclick="eventConnectSocket()">
+                    Connect Socket
+                </button>
+                <button id="btn_disconnect" type="button" onClick="eventDisconnectSocket()">
+                    Disconnect
+                </button>
+            </td>
+            <td>
+                <button id="btn_clearLog" type="button" onclick="eventLogClear()">
+                    Clear
+                </button>
+            </td>
+        </tr>
+    </table>
+    <span></span>
+    <textarea id="log_area" name="log_area"></textarea>
+
+</body>
+
+</html>

@@ -1,0 +1,15 @@
+// 1 - CreateBanner ----------------------------------------------------------------
+- The code starts by creating a validation function that checks the id parameter.
+- If it is invalid, then the code sends back an error response with details of error.
+- Next, this code validates the request body and if validation fails then it returns with a 400 status and error message.
+- The first thing that happens in this function is that a validation function for ids is created
+  which will check whether or not they are valid before continuing on with other parts of this function.
+- Next, when creating banners, if there were any changes made to them (such as adding images),
+  then those changes would be saved in temporary files so they can be applied later on without having to re-upload them again.
+- After saving all these changes into temporary files, they are moved into their final location where they can finally be
+  updated and deleted from their original location once everything has been done successfully
+- The code is an async function that creates a banner based on the request.
+- The first thing this code does is validate the id of the request, if validation fails then it will return with a 400 status and error message.
+- The next step in this code is to validate the schema_create_banner model. - If validation fails then it will return with a 400 status and error message.
+- Finally, this code updates the banner using models.updateBanner(bannerId, validatedRequest).
+- Finally, the logger is used to log out information about updating banners.

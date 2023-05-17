@@ -1,0 +1,11 @@
+export enum PayoutStatus {
+  INIT = 'INIT',
+  FAILED = 'FAILED',
+  COMPLETE = 'COMPLETE',
+  PENDING = 'PENDING',
+  REJECTED = 'REJECTED',
+  REVERSED = 'REVERSED',
+  // SUCCESS = 'SUCCESS',
+  // RECEIVED = 'RECEIVED',
+  // ERROR = 'ERROR',
+}

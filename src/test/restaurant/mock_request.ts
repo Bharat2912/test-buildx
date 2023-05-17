@@ -1,0 +1,98 @@
+export const sample_request = {
+  status: 'draft',
+  name: 'Restaurant name',
+  branch_name: 'Restaurant branch name',
+  lat: 1.098889,
+  long: 2.0089002,
+  image: {
+    name: '088066b3-c5c3-4e49-9d75-068346b5d094.jpg',
+  },
+  images: [
+    {
+      name: '088066b3-c5c3-4e49-9d75-068346b5d094.jpg',
+    },
+  ],
+  draft_section: 'basic / contact / fssai / bank',
+  city_id: '51ad1f92-e54a-4f2a-8452-d68cdd7e3a7b',
+  area_id: '20c37d26-bd71-4fe3-9365-16538f10fee8',
+  // preferred_language_ids: ['77206d74-8f7c-45b6-af7a-fe8901eb65ac'],
+  tnc_accepted: true,
+  user_profile: 'owner',
+  owner_name: 'Amitabh Bachchan',
+  owner_contact_number: '+919089890998',
+  owner_email: 'amitabh@bachchan.com',
+  owner_is_manager: true,
+  manager_name: 'Jaya Bachchan',
+  manager_contact_number: '+919089890998',
+  manager_email: 'jaya@bachchan.com',
+  invoice_email: 'invoice@bachchan.com',
+  location: '13/67 G.B. road mumbai',
+  postal_code: '401234',
+  state: 'Maharashtra',
+  read_mou: true,
+  document_sign_number: '+919089890998',
+  is_pure_veg: true,
+  allow_long_distance: true,
+  cuisine_ids: ['bafad85e-3f7f-496f-9851-6070275609e9'],
+  cost_of_two: 100,
+  menu_documents: [
+    {
+      name: '0028fb89-2503-4bf6-8d6d-3ec80b85d9ce.jpg',
+    },
+  ],
+  scheduling_type: 'all',
+  slot_schedule: [
+    {
+      slot_name: 'all',
+      start_time: '0001',
+      end_time: '2359',
+    },
+  ],
+  packing_charge_type: 'item',
+  custom_packing_charge_item: true,
+  packing_charge_item: [
+    {
+      item_name: 'Paneer Tikka',
+      item_price: 120,
+      packing_charge: 2.5,
+      packing_image: {
+        name: '0f8b52dd-d7d2-48f7-b6a6-1780cd5b9113.jpg',
+      },
+    },
+  ],
+  fssai_has_certificate: true,
+  fssai_application_date: '2018-03-20',
+  fssai_ack_number: 'ASX12456BCGF',
+  fssai_ack_document: {
+    name: '2bdbb716-04b6-4cef-9488-9b79893fb8ac.jpg',
+  },
+  fssai_expiry_date: '2018-03-20',
+  fssai_cert_number: 'ASX12456BCGF',
+  fssai_cert_document: {
+    name: '3c103eab-f93f-4bac-af92-00de744ff0a2.jpg',
+  },
+  fssai_firm_name: 'agarwa sweets',
+  fssai_firm_address: 'unknown',
+  gst_category: 'restaurant',
+  pan_number: 'ASX12456BCGF',
+  pan_owner_name: 'amitabh',
+  pan_document: {
+    name: '4ccce9ab-8d93-463e-8004-1b1971010a4c.jpg',
+  },
+  has_gstin: true,
+  gstin_number: 'ASX12456BCGF',
+  gstin_document: {
+    name: '4ce154f4-a551-4635-ac7a-d4fa1ad92fd6.jpg',
+  },
+  business_name: 'Agarwal sweets',
+  business_address: 'unknown',
+  bank_account_number: '12897312098120',
+  ifsc_code: 'ICIC000101',
+  bank_document: {
+    name: '4d345f25-4b49-47e2-9921-5f4b6782c384.jpg',
+  },
+  kyc_document: {
+    name: '4d8f9e53-1356-48cf-a1dd-b919b4e704fe.jpg',
+  },
+  poc_number: '+919819999999',
+};

@@ -1,0 +1,24 @@
+version: '3.1'
+
+services:
+  localstack:
+    container_name: '${LOCALSTACK_DOCKER_NAME-localstack_main}'
+    image: localstack/localstack
+    network_mode: bridge
+    environment:
+      - SERVICES=dynamodb
+      - AWS_DEFAULT_REGION=ap-south-1
+    ports:
+      - '4566:4566'
+    volumes:
+      - '${TMPDIR:-/tmp/localstack}:/var/lib/localstack'
+      - '/var/run/docker.sock:/var/run/docker.sock'
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.7
+    ports:
+      - 9200:9200
+    environment:
+      ES_JAVA_OPTS: '-Xms256m -Xmx256m'
+      network.bind_host: 0.0.0.0
+      network.host: 0.0.0.0
+      discovery.type: single-node

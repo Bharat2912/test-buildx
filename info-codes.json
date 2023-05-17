@@ -1,0 +1,17 @@
+{
+  "0": "could not identify order status",
+  "101": "order payment is pending",
+  "102": "waiting for restaurant to accept the order",
+  "103": "customer order has been accepted by restaurant",
+  "104": "searching for riders",
+  "105": "rider has been allocated",
+  "106": "food preparation has been completed by restaurant. waiting for delivery executive for pickup",
+  "107": "rider has picked up order from restaurant. rider is on the way to customers address",
+  "108": "rider has arrived at customers location",
+  "109": "rider has arrived customers doorstep",
+  "110": "rider has delivered the order to customer. order has been completed",
+  "111": "customer order has been cancelled by restaurant.customer refuld will be initiated",
+  "112": "order delivery has been cancelled by delivery service",
+  "113": "order has been cancelled by customer. Refund will be initiated if cancelled under cancellation criteria",
+  "114": "order has been cancelled by admin. Refund will decided by admin"
+}

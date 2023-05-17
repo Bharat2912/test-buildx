@@ -1,0 +1,9 @@
+export enum CashFreePayoutStatus {
+  SUCCESS = 'SUCCESS',
+  RECEIVED = 'RECEIVED',
+  FAILED = 'FAILED',
+  REJECTED = 'REJECTED',
+  REVERSED = 'REVERSED',
+  PENDING = 'PENDING',
+  ERROR = 'ERROR',
+}

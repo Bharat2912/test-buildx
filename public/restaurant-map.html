@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servisability</title>
+</head>
+
+<style>
+    /* html,
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+    } */
+
+    #tableTL,
+    canvas {
+        position: fixed;
+        top: 0;
+    }
+
+    #tableBR {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+    }
+
+    #tableTR {
+        position: fixed;
+        top: 0;
+        right: 0;
+    }
+
+    #distance {
+        width: 70px;
+    }
+
+    #div_button {
+        max-height: 90vh;
+        overflow-y: scroll;
+    }
+
+    .green_dom {
+        background-color: darkseagreen;
+    }
+
+    .yellow_dom {
+        background-color: gold;
+    }
+
+    .cyan_dom {
+        background-color: lightskyblue;
+    }
+
+    .pink_dom {
+        background-color: orchid;
+    }
+</style>
+
+<body id='main_body' oncontextmenu="return false;">
+
+
+    <canvas id="mapCanvas"></canvas>
+    <canvas id="gridCanvas"></canvas>
+    <canvas id="polyCanvas"></canvas>
+    <canvas id="restCanvas"></canvas>
+    <canvas id="restCanvas"></canvas>
+    <canvas id="drawCanvas"></canvas>
+    <table id="tableTL">
+        <tr>
+            <td>
+                <div id="allImages" hidden></div>
+                <img id="mapImg" src="mapImage.jpg" hidden />
+                <img id="restImg" height="20" src="restPin.png" hidden />
+                <img id="userImg" height="20" src="userPin.webp" hidden />
+                <input type="radio" id="modeRest" name="group_mode" onchange="radioChanged()">(R)est<br />
+                <input type="radio" id="modePoly" name="group_mode" onchange="radioChanged()">(P)oly<br />
+                <input type="radio" id="modeUser" name="group_mode" onchange="radioChanged()">(U)ser
+            </td>
+        </tr>
+        <tr id="tr_button">
+            <td id="td_button">
+                <div id="div_button"></div>
+            </td>
+        </tr>
+    </table>
+    <table id="tableTR">
+        <tr>
+            <td><input type="button" onclick="loadData()" value="Reset" /><a
+                    href="https://www.geodatasource.com/demo#latlong"> Dist </a><a
+                    href="https://www.keene.edu/campus/maps/tool"> POLY </a></td>
+        </tr>
+        <tr>
+            <td><a href="#" onclick="eventCopyAdminToken()">📋 Copy Admin Token</a></td>
+        </tr>
+        <tr>
+            <td><a href="#" onclick="eventCopyPartnerToken()">📋 Copy Partner Token</a></td>
+        </tr>
+        <tr>
+            <td><a href="#" onclick="eventCopyVendorToken()">📋 Copy Vendor Token</a></td>
+        </tr>
+        <tr>
+            <td><a href="#" onclick="eventCopyCustomerToken()">📋 Copy Customer Token</a></td>
+        </tr>
+    </table>
+    <table id="tableBR">
+        <tr>
+            <td>
+                <label id="lblZoom"></label>
+            </td>
+            <td>
+                <input id="sliderZoom" type="range" min="1" max="100" value="50" oninput="setZoom(this.value)"
+                    onchange="setZoom(this.value)">
+            </td>
+        </tr>
+    </table>
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+    <div id="cityModal" class="modal fade" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog"
+        aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <!-- <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button> -->
+                    <h3 id="myModalLabel">Select City</h3>
+                </div>
+                <div class="modal-body">
+                    <select id="cities_select">
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <!-- <button class="btn" data-dismiss="modal" aria-hidden="true">Close</button> -->
+                    <button class="btn btn-primary" id="selectCityBtn">Select</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+<script language="javascript" type="text/javascript">
+    //https://www.geodatasource.com/demo#latlong
+    //https://www.keene.edu/campus/maps/tool/
+    //https://en.wikipedia.org/wiki/Decimal_degrees
+    let centerlat = 72.77, centerlong = 19.1
+    let cities = [], areas = []
+    let authAdminTokenInput = "", authPartnerTokenInput = "", authCustomerTokenInput = "", authVendorTokenInput;
+    let customerPhone = "", customerOtp="", vendor_login_id = '', vedor_password = '', partner_phone = '', partner_otp = '';
+    let CurrColor = getRandomColor();
+    let CursorMode = "drawRest";
+    let scalar = 10000, zoomVal = 1.0;
+    let latOffset = centerlat, longOffset = centerlong;
+    let distance = 5000
+
+    let DBReadDataRest = [], DBReadDataPoly = [];
+    let DBCanvasDataRest = [], DBCanvasDataPoly = [];
+    let polygonBuff = [], resturantBuff = []
+
+    let mapCtx, gridCtx, polyCtx, restCtx, drawCtx;
+    let lblZoom = document.getElementById("lblZoom")
+    let mapCanvas = document.getElementById("mapCanvas")
+    let gridCanvas = document.getElementById("gridCanvas")
+    let restCanvas = document.getElementById("restCanvas")
+    let drawCanvas = document.getElementById("drawCanvas")
+    let polyCanvas = document.getElementById("polyCanvas")
+
+    let citySelect = document.getElementById("cities_select")
+    let RestRd = document.getElementById("modeRest")
+    let PolyRd = document.getElementById("modePoly")
+    let UserRd = document.getElementById("modeUser")
+    let userImg = document.getElementById("userImg");
+    let allImages = document.getElementById('allImages');
+
+    function setZoom(val) {
+        document.getElementById("sliderZoom").value = val;
+        lblZoom.innerHTML = val
+        zoomTo((101 - val) / 10);
+    }
+    function zoomIn() {
+        let val = document.getElementById("sliderZoom").value
+        if (val >= 100) return;
+        val++;
+        setZoom(val)
+    }
+    function zoomOut() {
+        let val = document.getElementById("sliderZoom").value
+        if (val <= 1) return;
+        val--;
+        setZoom(val)
+    }
+    function load() {
+        document.getElementById('main_body').hidden = true;
+        getAdminToken(() => {
+            getPartnerToken(() => {
+                getVendorToken(() => {
+                    getCustomerToken(() => {
+                        drawCanvas.addEventListener("dblclick", canvasMouseDblClicked);
+                        drawCanvas.addEventListener('mousemove', canvasMouseMoved);
+                        drawCanvas.addEventListener('mouseup', canvasMouseUp);
+                        drawCanvas.addEventListener('mousedown', canvasMouseDown);
+                        drawCanvas.addEventListener("wheel", canvadMouseWheel);
+                        document.addEventListener('keydown', documentKeyDown)
+                        loadData();
+                    });
+                });
+            });
+        })
+    }
+    function loadData() {
+        scalar = 10000;
+        zoomVal = 1.0;
+        latOffset = centerlat;
+        longOffset = centerlong;
+        distance = 5000
+        UserRd.checked = true;
+        drawCanvas.style.cursor = 'none'
+
+        resizeObjects();
+        showGrid();
+        getCityList();
+        document.getElementById('main_body').hidden = false;
+    }
+    function AskCustomerToken() {
+        if (authCustomerTokenInput) return true;
+        let token = prompt("Please enter 'Customer' Tokne:", "");
+        if (token == null || token == "") {
+            return false
+        }
+        authCustomerTokenInput = token
+        return true;
+    }
+    function AskAdminToken() {
+        if (authAdminTokenInput) return true;
+        let token = prompt("Please enter 'ADMIN' Tokne:", "");
+        if (token == null || token == "") {
+            return false
+        }
+        authAdminTokenInput = token
+        return true;
+    }
+    function AskPartnerToken() {
+        if (authPartnerTokenInput) return true;
+        let token = prompt("Please enter 'PARTNER' Tokne:", "");
+        if (token == null || token == "") {
+            return false
+        }
+        authPartnerTokenInput = token
+        return true;
+    }
+    function AskVendorToken() {
+        if (authVendorTokenInput) return true;
+        let token = prompt("Please enter 'VENDOR' Tokne:", "");
+        if (token == null || token == "") {
+            return false
+        }
+        authVendorTokenInput = token
+        return true;
+    }
+    function resizeObjects() {
+        mapCanvas.width = window.innerWidth;
+        mapCanvas.height = window.innerHeight;
+        gridCanvas.width = window.innerWidth;
+        gridCanvas.height = window.innerHeight;
+        restCanvas.width = window.innerWidth;
+        restCanvas.height = window.innerHeight;
+        drawCanvas.width = window.innerWidth;
+        drawCanvas.height = window.innerHeight;
+        polyCanvas.width = window.innerWidth;
+        polyCanvas.height = window.innerHeight;
+
+        mapCtx = mapCanvas.getContext('2d');
+        polyCtx = polyCanvas.getContext('2d');
+        gridCtx = gridCanvas.getContext('2d');
+        restCtx = restCanvas.getContext('2d');
+        drawCtx = drawCanvas.getContext('2d');
+    }
+    function refresh() {
+        PolytoLocalUnit();
+        ResttoLocalUnit();
+        drawPolyObjects(DBCanvasDataPoly);
+        drawRestObjects(DBCanvasDataRest);
+        showMap();
+    }
+    function reset() {
+        CurrColor = getRandomColor();
+        polygonBuff = [[0, 0]]
+        drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+        resturantBuff = []
+        radioChanged()
+        setZoom(85)
+    }
+
+    function checkPolygone() {
+
+        let cordinates = [];
+        for (let i = 0; i < polygonBuff.length; i++) {
+            if (i === 0) {
+                cordinates.push((polygonBuff[i]))
+            }
+            else {
+                let xy0 = cordinates[cordinates.length - 1]
+                let xy1 = (polygonBuff[i])
+                if ((xy0[0] !== xy1[0]) || (xy0[1] !== xy1[1])) {
+                    cordinates.push(xy1)
+                }
+            }
+        }
+
+        cordinates.push(cordinates[0])
+        for (let starti = 0; starti < cordinates.length - 2; starti++) {
+            let startLine = [cordinates[starti], cordinates[starti + 1]]
+            for (let i = starti + 1; i < cordinates.length - 1; i++) {
+                let line = [cordinates[i], cordinates[i + 1]]
+                if (intersects(
+                    cordinates[starti][0], cordinates[starti][1],
+                    cordinates[starti + 1][0], cordinates[starti + 1][1],
+                    cordinates[i][0], cordinates[i][1],
+                    cordinates[i + 1][0], cordinates[i + 1][1],
+                )) {
+                    console.log("Intersection ");
+                    return true
+                }
+            }
+        }
+
+        console.log("Simple ");
+        return false;
+    }
+    function intersects(a, b, c, d, p, q, r, s) {
+        var det, gamma, lambda;
+        det = (c - a) * (s - q) - (r - p) * (d - b);
+        if (det === 0) {
+            return false;
+        } else {
+            lambda = ((s - q) * (r - a) + (p - r) * (s - b)) / det;
+            gamma = ((b - d) * (r - a) + (c - a) * (s - b)) / det;
+            return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+        }
+    };
+    function showMap() {
+        var img = document.getElementById("mapImg");
+        let mapWidth = img.width * 5.1 / zoomVal;
+        let mapHeight = img.height * 5.1 / zoomVal;
+        let coords = RescaletoCanvas([19.297, 72.777])
+        mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+        mapCtx.drawImage(img, coords[0], coords[1], mapWidth, mapHeight);
+    }
+
+    function showGrid() {
+        gridCtx.strokeStyle = "#c0c0c0";
+        gridCtx.lineWidth = 1;
+        for (let i = 0; i < gridCanvas.width; i += 100) {
+            gridCtx.beginPath();
+            gridCtx.moveTo(i, 0);
+            gridCtx.lineTo(i, gridCanvas.height);
+            gridCtx.stroke();
+        }
+        for (let i = 0; i < gridCanvas.height; i += 100) {
+            gridCtx.beginPath();
+            gridCtx.moveTo(0, i);
+            gridCtx.lineTo(gridCanvas.width, i);
+            gridCtx.stroke();
+        }
+    }
+    function drawUser(lat, long) {
+
+        drawCtx.drawImage(userImg, lat - 15, long - 35, 30, 35);
+
+        drawCtx.beginPath();
+        drawCtx.arc(lat, long, (50) * (distance / (1000 * zoomVal)) * 1.85, 0, 2 * Math.PI);
+        drawCtx.stroke();
+        drawCtx.strokeStyle = "#ff00";
+        drawCtx.lineWidth = 1;
+        DrawLatlong(drawCtx, RescaletoMap([lat, long]), lat, long)
+    }
+    function radioChanged() {
+        if (PolyRd.checked) {
+            polygonBuff[0] = [0, 0];
+            CursorMode = "drawPoly"
+            showPolyButtons();
+        }
+        else if (RestRd.checked) {
+            CursorMode = "drawRest"
+            showRestButtons();
+        }
+        else {
+            CursorMode = "drawUser"
+            showDistanceInput()
+        }
+    }
+    function canvadMouseWheel(event) {
+        const delta = Math.sign(event.deltaY);
+        if (delta < 0) {
+            zoomIn()
+        }
+        else {
+            zoomOut()
+        }
+    }
+    let pan_start_x = 0, pan_start_y = 0;
+    let MouseDown = 0, MouseMoved = 0;
+    function canvasMouseMoved(event) {
+        event = event || window.event;
+        if (MouseDown) {
+            MouseMoved = 1;
+            for (let j = 0; j < polygonBuff.length; j++) {
+                polygonBuff[j] = (RescaletoMap(polygonBuff[j]));
+            }
+            let x = pan_start_x - event.offsetX;
+            let y = event.offsetY - pan_start_y;
+            longOffset = longOffset + ((0.0001 * y) * zoomVal)
+            latOffset = latOffset + ((0.0001 * x) * zoomVal)
+            pan_start_x = event.offsetX
+            pan_start_y = event.offsetY
+            for (let j = 0; j < polygonBuff.length; j++) {
+                polygonBuff[j] = RescaletoCanvas((polygonBuff[j]));
+            }
+            refresh();
+        }
+        let x = event.offsetX;
+        let y = event.offsetY;
+
+        drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+        if (CursorMode === "drawUser") {
+            drawUser(x, y)
+        }
+        else if (CursorMode === "drawRest") {
+            drawRest(drawCtx, [x, y], CurrColor)
+        }
+        else if (CursorMode === "drawPoly") {
+            polygonBuff[polygonBuff.length - 1] = [x, y];
+            drawPoly(drawCtx, polygonBuff, CurrColor);
+        }
+    }
+    function canvasMouseDblClicked(event) {
+        let x = event.offsetX;
+        let y = event.offsetY;
+        if (CursorMode === "drawUser") {
+            console.log("Checking user resturant..")
+            let cords = RescaletoMap([x, y])
+            getRestaurantList(cords[0], cords[1])
+        }
+        else if (CursorMode === "drawRest") {
+            drawRest(restCtx, [x, y], CurrColor)
+            resturantBuff = [x, y]
+            saveRest();
+        }
+        else if (CursorMode === "drawPoly") {
+            if (polygonBuff.length < 3) { return }
+            drawPoly(polyCtx, polygonBuff, CurrColor);
+            savePoly();
+        }
+    }
+    function documentKeyDown(event) {
+        event = event || window.event;
+        var isEscape = false;
+        if ("key" in event) {
+            isEscape = (event.key === "Escape" || event.key === "Esc");
+            if ((event.key) === 'p') {
+                PolyRd.checked = true;
+                radioChanged();
+            }
+            if ((event.key) === 'r') {
+                RestRd.checked = true;
+                radioChanged();
+            }
+            if ((event.key) === 'u') {
+                UserRd.checked = true;
+                radioChanged();
+            }
+        } else {
+            isEscape = (event.keyCode === 27);
+        }
+        if (isEscape) {
+            reset();
+        }
+    };
+    function canvasMouseUp(event) {
+        if (!MouseMoved) {
+            let x = event.offsetX;
+            let y = event.offsetY;
+            if (CursorMode === "drawPoly") {
+                polygonBuff.push([x, y])
+            }
+        }
+        MouseDown = 0;
+        drawCanvas.style.cursor = 'none'
+    }
+    function canvasMouseDown(event) {
+        MouseMoved = 0;
+        pan_start_x = event.offsetX
+        pan_start_y = event.offsetY
+        MouseDown = 1;
+        drawCanvas.style.cursor = 'grab'
+    }
+    function zoomTo(zoom) {
+        if (zoomVal == zoom) return;
+        let oldlong = RescaletoMaplat(0)
+        let oldlat = RescaletoMaplong(drawCanvas.width)
+        zoomVal = zoom
+        scalar = 10000 / zoomVal
+        let newlong = RescaletoMaplat(0)
+        let newlat = RescaletoMaplong(drawCanvas.width)
+        let difflat = (oldlat - newlat) / 2
+        let difflong = (oldlong - newlong) / 2
+        latOffset += difflat
+        longOffset += difflong
+        refresh();
+    }
+    function DrawLatlong(ctx, coordinates, lat, long) {
+        ctx.fillStyle = '#000000';
+        ctx.strokeStyle = '#000000';
+        ctx.font = "20px Arial";
+        ctx.fillText(coordinates[0].toFixed(6), lat, long);
+        ctx.fillText(coordinates[1].toFixed(6), lat, long + 30);
+    }
+
+    function getAdminToken(cb) {
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                var data = JSON.parse(this.responseText).result;
+                authAdminTokenInput = data.token
+                console.log("Admin Token:")
+                console.log(authAdminTokenInput)
+            }
+            cb();
+        };
+        let authurl = window.location.origin;
+        if (authurl.indexOf("localhost") >= 0) {
+            authurl = 'http://localhost:8000/user/admin/auth/login'
+        }
+        else {
+            authurl = `/user/admin/auth/login`
+        }
+        xhr.open('POST', authurl, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        let saved_admin_id = localStorage.getItem('admin_id') || "superadminn";
+        let admin_id = prompt("Please enter Admin ID", saved_admin_id);
+        if (admin_id == null || admin_id == "") {
+            return
+        }
+        let saved_admin_password = localStorage.getItem('admin_password') || "superadminn";
+        let admin_password = prompt("Please enter Admin password", saved_admin_password);
+        if (admin_password == null || admin_password == "") {
+            return
+        }
+        xhr.send(
+            JSON.stringify({
+                "user_name": admin_id,
+                "password": admin_password
+            })
+        );
+    }
+    function getPartnerToken(cb) {
+        var saved_phone = localStorage.getItem('partner_phone') || "+910123456789";
+        var saved_otp = localStorage.getItem('parner_otp') || "00000";
+        let phone = prompt("Please enter Partner Login id:", saved_phone);
+        if (phone == null || phone == "") {
+            return
+        }
+        let otp = prompt("Please enter Partner password:", saved_otp);
+        if (otp == null || otp == "") {
+            return
+        }
+        partner_phone = phone;
+        partner_otp = otp
+        localStorage.setItem('partner_phone', partner_phone);
+        localStorage.setItem('parner_otp', partner_otp);
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                verifyPartnerOtp(cb);
+            }
+            else {
+                cb()
+            }
+        };
+        let authurl = window.location.origin;
+        if (authurl.indexOf("localhost") >= 0) {
+            authurl = 'http://localhost:8000/user/partner/auth/login/otp'
+        }
+        else {
+            authurl = `/user/partner/auth/login/otp`
+        }
+        xhr.open('POST', authurl, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(
+            JSON.stringify({
+                "phone": partner_phone,
+            })
+        );
+    }
+    function verifyPartnerOtp(cb) {
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                var data = JSON.parse(this.responseText).result;
+                authPartnerTokenInput = data.token
+                console.log("Partner Token:")
+                console.log(authPartnerTokenInput)
+            }
+            cb();
+        };
+        let authurl = window.location.origin;
+        if (authurl.indexOf("localhost") >= 0) {
+            authurl = 'http://localhost:8000/user/partner/auth/login/verify'
+        }
+        else {
+            authurl = `/user/partner/auth/login/verify`
+        }
+        xhr.open('POST', authurl, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        let sendData = {
+            "phone": partner_phone,
+            "phone_otp": partner_otp
+        }
+        xhr.send(
+            JSON.stringify(sendData)
+        );
+    }
+    function getVendorToken(cb) {
+        var saved_login_id = localStorage.getItem('gro_vendor_login_id') || "RES22030002";
+        var saved_password = localStorage.getItem('vedor_password') || "SJ123";
+        let login_id = prompt("Please enter Vendor Login id:", saved_login_id);
+        if (login_id == null || login_id == "") {
+            return
+        }
+        let password = prompt("Please enter Vendor password:", saved_password);
+        if (password == null || password == "") {
+            return
+        }
+        vendor_login_id = login_id;
+        vedor_password = password
+        localStorage.setItem('gro_vendor_login_id', vendor_login_id);
+        localStorage.setItem('vedor_password', vedor_password);
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                var data = JSON.parse(this.responseText).result;
+                authVendorTokenInput = data.token
+                console.log("Vendor Token:")
+                console.log(authVendorTokenInput)
+            }
+            cb()
+        };
+        let authurl = window.location.origin;
+        if (authurl.indexOf("localhost") >= 0) {
+            authurl = 'http://localhost:8000/user/vendor/auth/login'
+        }
+        else {
+            authurl = `/user/vendor/auth/login`
+        }
+        xhr.open('POST', authurl, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(
+            JSON.stringify({
+                "login_id": vendor_login_id,
+                "password": vedor_password
+            })
+        );
+    }
+    function getCustomerToken(cb) {
+        var saved_customerPhone = localStorage.getItem('customerPhone') || "+918591114112";
+        var saved_customerOtp = localStorage.getItem('customerOtp') || "00000";
+        let phone = prompt("Please enter Customer phone:", saved_customerPhone);
+        if (phone == null || phone == "") {
+            return
+        }
+        let otp = prompt("Please enter Customer OTP:", saved_customerOtp);
+        if (otp == null || otp == "") {
+            return
+        }
+        customerOtp = otp
+        customerPhone = phone;
+        localStorage.setItem('customerOtp', otp);
+        localStorage.setItem('customerPhone', customerPhone);
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                var data = JSON.parse(this.responseText).result;
+                verifyCustomerOtp(cb);
+            }
+        };
+        let authurl = window.location.origin;
+        if (authurl.indexOf("localhost") >= 0) {
+            authurl = 'http://localhost:8000/user/customer/auth/login/otp'
+        }
+        else {
+            authurl = `/user/customer/auth/login/otp`
+        }
+        xhr.open('POST', authurl, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(
+            JSON.stringify({
+                "phone": phone
+            })
+        );
+    }
+    function verifyCustomerOtp(cb) {
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                var data = JSON.parse(this.responseText).result;
+                authCustomerTokenInput = data.token
+                console.log("Customer token:")
+                console.log(authCustomerTokenInput)
+                cb();
+            }
+        };
+        let authurl = window.location.origin;
+        if (authurl.indexOf("localhost") >= 0) {
+            authurl = 'http://localhost:8000/user/customer/auth/login/verify'
+        }
+        else {
+            authurl = `/user/customer/auth/login/verify`
+        }
+        xhr.open('POST', authurl, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(
+            JSON.stringify({
+                "phone": customerPhone,
+                "otp": "00000"
+            })
+        );
+    }
+
+    function setDistance() {
+        distance = document.getElementById("distance").value
+    }
+    function showDistanceInput() {
+        let str = `
+        <label for="distance">Distance:</label>
+        <br>
+        <input type="number"  id="distance" name="distance" min="500" max="10000" value="${distance}" onchange='setDistance()'>`
+        document.getElementById("div_button").innerHTML = str
+    }
+
+    function getRestaurantList(lat, long) {
+        if (!AskCustomerToken()) return;
+        var xhr = new XMLHttpRequest();
+        refresh();
+        xhr.onreadystatechange = function () {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                reset();
+                var data = JSON.parse(this.responseText).result;
+                console.log("Filtered Restaurants:", data)
+                for (let i = 0; i < data.length; i++) {
+                    data[i].coordinates = RescaletoCanvas([data[i].lat, data[i].long])
+                    data[i].color = getRandomColor();
+                    restCtx.strokeStyle = "#00ff00";
+                    restCtx.lineWidth = 1;
+                    restCtx.beginPath();
+                    restCtx.arc(data[i].coordinates[0], data[i].coordinates[1], 50, 0, 2 * Math.PI);
+                    restCtx.stroke();
+
+                    restCtx.strokeStyle = "#ff0000";
+                    restCtx.lineWidth = 1;
+                    restCtx.beginPath();
+                    restCtx.arc(data[i].coordinates[0], data[i].coordinates[1], 45, 0, 2 * Math.PI);
+                    restCtx.stroke();
+                }
+            }
+            else {
+                alert(this.responseText)
+            }
+        };
+
+        xhr.open("POST", "/food/restaurant/filter", true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Authorization', 'Bearer ' + authCustomerTokenInput);
+        const sendData = {
+            coordinates: {
+                lat: lat,
+                long: long,
+                distance: distance
+            }
+        }
+        console.log("Filter Data", sendData)
+        xhr.send(JSON.stringify(sendData));
+    }
+    function citySelected() {
+        $('#cityModal').modal('hide');
+        polygonBuff[0] = [0, 0];
+        CursorMode = "drawPoly"
+        if (citySelect.value) {
+            getAreaList();
+        }
+        readPolygons(() => {
+            readResturants(() => {
+                reset();
+            })
+        });
+    }
+    function showCityDialog() {
+        let str = ` "<option value="">All</option>"`;
+        for (let i = 0; i < cities.length; i++) {
+            str = str + `<option value="${cities[i].id}">${cities[i].name}</option>`
+        }
+        citySelect.innerHTML = str
+        $('#cityModal').modal('show');
+    }
+    function getCityList() {
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                var data = JSON.parse(this.responseText).result;
+                console.log("City list:", data)
+                if (data.length) {
+                    cities = data
+                    $('#cityModal #selectCityBtn').click(() => {
+                        citySelected();
+                    })
+                    showCityDialog();
+                }
+                else alert('No Cities Found')
+            }
+            else {
+                alert(this.responseText)
+            }
+        };
+        xhr.open('GET', '/core/admin/city', true);
+        xhr.setRequestHeader('Authorization', 'Bearer ' + authAdminTokenInput);
+        xhr.send();
+    }
+    function getAreaList(cb) {
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                var data = JSON.parse(this.responseText).result;
+                console.log("Area list:", data)
+                if (data.length) {
+                    areas = data
+                    // $('#cityModal #selectCityBtn').click(() => {
+                    //     citySelected();
+                    // })
+                    // showCityDialog();
+                }
+                else alert('No Area Found')
+            }
+            else {
+                alert(this.responseText)
+            }
+        };
+        xhr.open('GET', '/core/partner/polygon?city_id=' + citySelect.value, true);
+        xhr.setRequestHeader('Authorization', 'Bearer ' + authPartnerTokenInput);
+        xhr.send();
+    }
+
+    function PolyButtonMouseIn(index) {
+        DBReadDataPoly[index].hilight = true
+        refresh();
+    }
+    function PolyButtonMouseOut(index) {
+        DBReadDataPoly[index].hilight = false
+        refresh();
+    }
+    function showPolyButtons() {
+        let str = ""
+        for (let i = 0; i < DBCanvasDataPoly.length; i++) {
+            if (DBCanvasDataPoly[i].status === "geohashPending") {
+                str += `<input type="button" onmouseenter="PolyButtonMouseIn(${i})"  onmouseleave="PolyButtonMouseOut(${i})" value="Delete" onclick="deletePolygon('${DBCanvasDataPoly[i].id}')">${DBCanvasDataPoly[i].name}_>Geohash Pending<br />`
+            }
+            else {
+                str += `<input type="button" onmouseenter="PolyButtonMouseIn(${i})"  onmouseleave="PolyButtonMouseOut(${i})" value="Delete" onclick="deletePolygon('${DBCanvasDataPoly[i].id}')">${DBCanvasDataPoly[i].name}<br />`
+            }
+        }
+        document.getElementById("div_button").innerHTML = str
+    }
+    function savePoly() {
+        if (!AskAdminToken()) return;
+
+        let polyName = prompt("Please enter polygon name:", "Mumbai");
+        if (polyName == null || polyName == "") {
+            reset();
+            return
+        }
+
+        function reqListener() {
+            if (this.status == 201) {
+                readPolygons(refresh);
+                console.log(this.responseText)
+                alert("Saved")
+            }
+            else {
+                alert(this.responseText)
+            }
+            reset();
+        }
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/core/admin/polygon", true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Authorization', 'Bearer ' + authAdminTokenInput);
+        xhr.addEventListener("load", reqListener);
+
+        if (checkPolygone()) {
+            alert("Polygone is intersecting please Draw simple")
+            reset();
+            return
+        }
+
+        let savebuff = [];
+        for (let i = 0; i < polygonBuff.length; i++) {
+            if (i === 0) {
+                savebuff.push(RescaletoMap(polygonBuff[i]))
+            }
+            else {
+                let xy0 = savebuff[savebuff.length - 1]
+                let xy1 = RescaletoMap(polygonBuff[i])
+                if ((xy0[0] !== xy1[0]) || (xy0[1] !== xy1[1])) {
+                    savebuff.push(xy1)
+                }
+            }
+        }
+        console.log(savebuff)
+        xhr.send(JSON.stringify({
+            name: polyName,
+            city_id: citySelect.value,
+            coordinates: savebuff
+        }));
+    }
+    function deletePolygon(polyId) {
+        if (!AskAdminToken()) return;
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                var data = JSON.parse(this.responseText).result;
+                console.log("Polygons", JSON.stringify(data))
+                readPolygons(refresh);
+            }
+            else {
+                alert(this.responseText)
+            }
+        };
+        xhr.open('DELETE', "/core/admin/polygon/" + polyId, true);
+        xhr.setRequestHeader('Authorization', 'Bearer ' + authAdminTokenInput);
+        xhr.send();
+    }
+    function readPolygons(cb) {
+        if (!AskAdminToken()) return;
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                var data = JSON.parse(this.responseText).result;
+                console.log("Polygons", data)
+                DBReadDataPoly = data;
+                readInitPoly();
+                cb()
+            }
+            else {
+                alert(this.responseText)
+            }
+        };
+        xhr.open('GET', "/core/admin/polygon", true);
+        xhr.setRequestHeader('Authorization', 'Bearer ' + authAdminTokenInput);
+        xhr.send();
+    }
+    function readInitPoly() {
+        let str = JSON.stringify(DBReadDataPoly);
+        let data = JSON.parse(str)
+        let diff = 19.4425 - 19.038;
+        let center = 19.4425 - (diff / 2)
+        let cordstr = ""
+        let namestr = ""
+        for (let i = 0; i < data.length; i++) {
+            data[i].color = getRandomColor();
+            data[i].hilight = false
+            let teststr = "";
+            for (let j = 0; j < data[i].coordinates.length; j++) {
+                teststr += data[i].coordinates[j][1] + ", " + data[i].coordinates[j][0] + "\n"
+            }
+            cordstr += JSON.stringify(data[i].coordinates) + "\n"
+            namestr += JSON.stringify(data[i].name) + "\n"
+        }
+        DBReadDataPoly = data;
+    }
+    function PolytoLocalUnit() {
+        let str = JSON.stringify(DBReadDataPoly);
+        let data = JSON.parse(str)
+        for (let i = 0; i < data.length; i++) {
+            for (let j = 0; j < data[i].coordinates.length; j++) {
+                data[i].coordinates[j] = RescaletoCanvas(data[i].coordinates[j]);
+            }
+        }
+        DBCanvasDataPoly = data;
+    }
+    function drawPoly(ctx, coordinates, color, hilight) {
+        if (coordinates.length < 1) {
+            console.log("coordinates less then 3");
+            return;
+        }
+
+        ctx.fillStyle = color || getRandomColor();
+
+        ctx.beginPath();
+        ctx.arc(coordinates[0][0], coordinates[0][1], 4, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.strokeStyle = color || getRandomColor();
+        ctx.lineWidth = 3;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(coordinates[0][0], coordinates[0][1]);
+        if (coordinates.length === 2) {
+            ctx.lineTo(coordinates[1][0], coordinates[1][1]);
+            ctx.stroke();
+            return
+        }
+        for (let i = 1; i < coordinates.length; i++) {
+            ctx.lineTo(coordinates[i][0], coordinates[i][1]);
+            ctx.stroke();
+        }
+        ctx.closePath();
+        if (hilight) {
+            ctx.fill();
+        }
+        else {
+            ctx.stroke();
+        }
+    }
+    function drawPolyObject(ctx, plyobject) {
+        drawPoly(ctx, plyobject.coordinates, plyobject.color, plyobject.hilight)
+        ctx.fillStyle = '#000000';
+        ctx.strokeStyle = '#000000';
+        ctx.font = "20px Arial";
+        ctx.fillText(plyobject.name, plyobject.coordinates[0][0], plyobject.coordinates[0][1]);
+    }
+    function drawPolyObjects(polyObjs) {
+        polyCtx.clearRect(0, 0, polyCanvas.width, polyCanvas.height);
+        for (let i = 0; i < polyObjs.length; i++) {
+            drawPolyObject(polyCtx, polyObjs[i])
+        }
+    }
+
+    function RestButtonMouseIn(index) {
+        DBReadDataRest[index].hilight = true
+        refresh();
+    }
+    function RestButtonMouseOut(index) {
+        DBReadDataRest[index].hilight = false
+        refresh();
+    }
+    function showRestButtons() {
+        let str = ""
+        for (let i = 0; i < DBCanvasDataRest.length; i++) {
+            if (DBCanvasDataRest[i].status === "draft") {
+                str += `<input  onmouseenter="RestButtonMouseIn(${i})" class="green_dom" onmouseleave="RestButtonMouseOut(${i})" type="button" value="Submit (${DBCanvasDataRest[i].name})" onclick="submitRestaurant('${DBCanvasDataRest[i].id}')"><br />`
+            }
+            else if (DBCanvasDataRest[i].status === "approvalPending") {
+                str += `<input onmouseenter="RestButtonMouseIn(${i})" class="cyan_dom" onmouseleave="RestButtonMouseOut(${i})" type="button" value="Admin Approve (${DBCanvasDataRest[i].name})" onclick="approveAdminRestaurant('${DBCanvasDataRest[i].id}')"><br />`
+            }
+            else if (DBCanvasDataRest[i].status === "catalogPending") {
+                str += `<input onmouseenter="RestButtonMouseIn(${i})" class="yellow_dom" onmouseleave="RestButtonMouseOut(${i})" type="button" value="Catalg Approve (${DBCanvasDataRest[i].name})" onclick="approveCatalogRestaurant('${DBCanvasDataRest[i].id}')"><br />`
+            }
+            else if (DBCanvasDataRest[i].status === "geohashPending") {
+                str += `<input onmouseenter="RestButtonMouseIn(${i})" onmouseleave="RestButtonMouseOut(${i})" type="button" value="Delete (${DBCanvasDataRest[i].name})" onclick="deleteResturant('${DBCanvasDataRest[i].id}')">_>Geohash Pending<br />`
+            }
+            else {
+                str += `<input onmouseenter="RestButtonMouseIn(${i})" class="pink_dom" onmouseleave="RestButtonMouseOut(${i})" type="button" value="Delete (${DBCanvasDataRest[i].name})" onclick="deleteResturant('${DBCanvasDataRest[i].id}')"><br />`
+            }
+        }
+        document.getElementById("div_button").innerHTML = str
+    }
+    function submitRestaurant(restId) {
+        if (!AskPartnerToken()) return;
+
+        function reqListener() {
+            if (this.status == 200) {
+                reset();
+                readResturants(refresh);
+                console.log(this.responseText)
+                alert("Submitted")
+            }
+            else {
+                alert(this.responseText)
+            }
+        }
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", `/food/partner/restaurant/${restId}/submit`, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Authorization', 'Bearer ' + authPartnerTokenInput);
+        xhr.addEventListener("load", reqListener);
+        xhr.send();
+    }
+    function approveAdminRestaurant(restId) {
+        if (!AskAdminToken()) return;
+        let remark = prompt("Please enter restaurant comment:", "Comments");
+        if (remark == null || remark == "") {
+            return
+        }
+        function reqListener() {
+            if (this.status == 200) {
+                reset();
+                readResturants(refresh);
+                console.log(this.responseText)
+                alert("Admin Approved")
+            }
+            else {
+                alert(this.responseText)
+            }
+        }
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", `/food/admin/restaurant/${restId}/approval/admin`, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Authorization', 'Bearer ' + authAdminTokenInput);
+        xhr.addEventListener("load", reqListener);
+        xhr.send(JSON.stringify({
+            approved: true,
+            status_comments: remark
+        }));
+    }
+    function approveCatalogRestaurant(restId) {
+        if (!AskAdminToken()) return;
+        function reqListener() {
+            if (this.status == 200) {
+                reset();
+                readResturants(refresh);
+                console.log(this.responseText)
+                alert("Admin Approved")
+            }
+            else {
+                alert(this.responseText)
+            }
+        }
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", `/food/admin/restaurant/${restId}/approval/catalog`, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Authorization', 'Bearer ' + authAdminTokenInput);
+        xhr.addEventListener("load", reqListener);
+        xhr.send();
+    }
+    function saveRest() {
+        if (!AskPartnerToken()) return;
+
+        if (!citySelect.value) {
+            showCityDialog();
+            return;
+        }
+        let area_id = prompt("Please enter Area Id:", "a8c4fa39-ee02-422b-a903-fddd15a7ce77");
+        if (area_id == null || area_id == "") {
+            return
+        }
+        let restName = prompt("Please enter Resturant name:", "Domino");
+        if (restName == null || restName == "") {
+            reset();
+            return
+        }
+        function reqListener() {
+            if (this.status == 201) {
+                reset();
+                readResturants(refresh);
+                console.log(this.responseText)
+                alert("Saved")
+            }
+            else {
+                alert(this.responseText)
+            }
+        }
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/food/partner/restaurant", true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Authorization', 'Bearer ' + authPartnerTokenInput);
+        xhr.addEventListener("load", reqListener);
+        let data = {
+            name: restName,
+            lat: RescaletoMaplat(resturantBuff[1]),
+            long: RescaletoMaplong(resturantBuff[0])
+        }
+        console.log("saving rest", data)
+        xhr.send(JSON.stringify(data));
+    }
+    function deleteResturant(restId) {
+        if (!AskPartnerToken()) return;
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                var data = JSON.parse(this.responseText).result;
+                console.log("Resturents", JSON.stringify(data))
+                readResturants(refresh);
+            }
+            else {
+                alert(this.responseText)
+            }
+        };
+        xhr.open('DELETE', "/food/partner/restaurant/" + restId, true);
+        xhr.setRequestHeader('Authorization', 'Bearer ' + authPartnerTokenInput);
+        xhr.send();
+    }
+    function readResturants(cb) {
+        if (!AskAdminToken()) return;
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (this.readyState != 4) return;
+            if (this.status == 200) {
+                var data = JSON.parse(this.responseText).result;
+                console.log("Resturents", data)
+                DBReadDataRest = data;
+                readInitRest();
+                cb()
+            }
+            else {
+                alert(this.responseText)
+            }
+        };
+        xhr.open('POST', "/food/admin/restaurant/test/", true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Authorization', 'Bearer ' + authAdminTokenInput);
+        // xhr.send();
+        xhr.send(JSON.stringify({
+            city_id: citySelect.value,
+        }));
+    }
+    function readInitRest() {
+        data = DBReadDataRest
+        allImages.innerHTML = ""
+        for (let i = 0; i < data.length; i++) {
+            data[i].index = i;
+            if (data[i].image && data[i].image.url) {
+                let img = new Image(100, 100);
+                img.id = 'img_' + data[i].id
+                img.onload = function () {
+                    data[i].image.loaded = true
+                };
+                img.src = data[i].image.url;
+                allImages.appendChild(img)
+                data[i].image = {
+                    img: img,
+                    loaded: false
+                }
+            }
+            else {
+                data[i].image = null
+            }
+        }
+        DBReadDataRest = data
+    }
+    function ResttoLocalUnit() {
+        let str = JSON.stringify(DBReadDataRest);
+        let data = JSON.parse(str)
+        for (let i = 0; i < data.length; i++) {
+            data[i].coordinates = RescaletoCanvas([data[i].lat, data[i].long])
+            delete data[i].lat
+            delete data[i].long
+            data[i].color = getRandomColor();
+        }
+        DBCanvasDataRest = data
+
+    }
+    function drawRest(ctx, coordinates, color, hilight) {
+        var img = document.getElementById("restImg");
+
+        if (hilight) {
+            ctx.drawImage(img, coordinates[0] - 20, coordinates[1] - 50, 40, 50);
+        }
+        else {
+            ctx.drawImage(img, coordinates[0] - 15, coordinates[1] - 35, 30, 35);
+        }
+    }
+    function drawRestObject(ctx, restobject) {
+        restobject.image = DBReadDataRest[restobject.index].image
+        if (restobject.image) {
+
+            if (DBCanvasDataRest[restobject.index].image.loaded) {
+                const img = document.getElementById('img_' + restobject.id)
+                if (restobject.hilight) {
+                    ctx.drawImage(img, restobject.coordinates[0] - 30, restobject.coordinates[1] - 100, 60, 100);
+                }
+                else {
+                    ctx.drawImage(img, restobject.coordinates[0] - 15, restobject.coordinates[1] - 50, 30, 35);
+                }
+            }
+            else {
+                drawRest(ctx, restobject.coordinates, restobject.color, restobject.hilight)
+                const img = document.getElementById('img_' + restobject.id)
+                img.onload = function () {
+                    DBCanvasDataRest[restobject.index].image.loaded = true
+                    if (restobject.hilight) {
+                        ctx.drawImage(img, restobject.coordinates[0] - 30, restobject.coordinates[1] - 100, 60, 100);
+                    }
+                    else {
+                        ctx.drawImage(img, restobject.coordinates[0] - 15, restobject.coordinates[1] - 50, 30, 35);
+                    }
+                };
+            }
+
+
+            ctx.beginPath();
+            ctx.lineTo(restobject.coordinates[0], restobject.coordinates[1]);
+            ctx.stroke();
+            ctx.lineTo(restobject.coordinates[0] - 12, restobject.coordinates[1] - 15);
+            ctx.stroke();
+            ctx.lineTo(restobject.coordinates[0] + 12, restobject.coordinates[1] - 15);
+            ctx.stroke();
+            ctx.closePath();
+            ctx.fill();
+
+        }
+        else
+            drawRest(ctx, restobject.coordinates, restobject.color, restobject.hilight)
+
+        ctx.fillStyle = '#000000';
+        ctx.strokeStyle = '#000000';
+        ctx.font = "20px Arial";
+        ctx.fillText(restobject.name, restobject.coordinates[0], restobject.coordinates[1] + 10);
+
+
+        return restobject
+    }
+    function drawRestObjects(restObjs) {
+        restCtx.clearRect(0, 0, restCanvas.width, restCanvas.height);
+        for (let i = 0; i < DBCanvasDataRest.length; i++) {
+            DBCanvasDataRest[i] = drawRestObject(restCtx, DBCanvasDataRest[i])
+        }
+    }
+
+    function eventCopyCustomerToken() {
+        copyTextToClipboard(authCustomerTokenInput);
+    }
+    function eventCopyPartnerToken() {
+        copyTextToClipboard(authPartnerTokenInput);
+    }
+    function eventCopyVendorToken() {
+        copyTextToClipboard(authVendorTokenInput);
+    }
+    function eventCopyAdminToken() {
+        copyTextToClipboard(authAdminTokenInput);
+    }
+    function copyTextToClipboard(text) {
+        if (!navigator.clipboard) {
+            fallbackCopyTextToClipboard(text);
+            return;
+        }
+        navigator.clipboard.writeText(text).then(function () {
+            console.log('Async: Copying to clipboard was successful!');
+        }, function (err) {
+            console.error('Async: Could not copy text: ', err);
+        });
+    }
+    function RescaletoMaplong(data) {
+        return (((data) / scalar) + latOffset)
+    }
+    function RescaletoMaplat(data) {
+        return (((drawCanvas.height - data) / scalar) + longOffset)
+    }
+    function RescaletoMap(data) {
+        let lat = (((drawCanvas.height - data[1]) / scalar) + longOffset)
+        let long = ((data[0] / scalar) + latOffset)
+        return [lat, long]
+    }
+    function RescaletoCanvas(data) {
+        let long = (drawCanvas.height - ((data[0] - longOffset) * scalar))
+        let lat = ((data[1] - latOffset) * scalar)
+        return [lat, long]
+    }
+    function getRandomColor() {
+        var letters = '0123456789ABCDEF';
+        var color = '#';
+        for (var i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+    }
+    window.onload = function (e) {
+        load();
+    }
+</script>
+
+</html>
