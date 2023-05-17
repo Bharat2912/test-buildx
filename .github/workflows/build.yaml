@@ -23,7 +23,7 @@ jobs:
         
       - name: Run Buildx
         run: | 
-          docker buildx build -t test --output=type=docker --platform linux/arm64 . --set *.cache-to="type=gha,mode=max" --set *.cache-from="type=gha" --load
+          docker buildx build -t test --output=type=docker --platform linux/arm64 --set *.cache-to="type=gha,mode=max" --set *.cache-from="type=gha" .
           docker images
 
 #     runs-on: ubuntu-latest
