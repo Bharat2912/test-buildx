@@ -23,8 +23,9 @@ jobs:
         
       - name: Run Buildx
         run: | 
-          export DOCKER_BUILDKIT=1
-          docker buildx build -t test --output=type=docker --platform linux/arm64 --build-arg BUILDKIT_INLINE_CACHE=1  .
+            docker context create builder-context
+            docker buildx create --name builderx --driver docker-container --use builder-context
+            docker buildx build -t test --output=type=docker --platform linux/arm64  .
 
 #     runs-on: ubuntu-latest
 
