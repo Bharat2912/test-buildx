@@ -23,7 +23,7 @@ jobs:
         
       - name: Run Buildx
         run: |
-            docker buildx build -t test --build-arg BUILDKIT_MULTI_PLATFORM=1 . --output=type=docker --platform linux/arm64  .
+            docker buildx build -t test --build-arg BUILDKIT_MULTI_PLATFORM=1 --output=type=docker --platform linux/arm64  .
 
 #     runs-on: ubuntu-latest
 
