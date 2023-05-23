@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-   runs-on: ubuntu-latest
+   runs-on: arm64v8/ubuntu
    steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -23,7 +23,7 @@ jobs:
         
       - name: Run Buildx
         run: |
-            docker buildx build -t test --build-arg BUILDKIT_MULTI_PLATFORM=1 --output=type=docker --platform linux/arm64  .
+            docker buildx build -t test --output=type=docker --platform linux/arm64  .
 
 #     runs-on: ubuntu-latest
 
