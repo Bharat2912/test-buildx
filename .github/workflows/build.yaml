@@ -25,7 +25,7 @@ jobs:
         run: |
             docker buildx build -t test --output=type=docker --platform linux/arm64  .
 
-#     runs-on: ubuntu-latest
+#     runs-on: ubuntu-latest..
 
 #     steps:
 #     - uses: actions/checkout@v2
